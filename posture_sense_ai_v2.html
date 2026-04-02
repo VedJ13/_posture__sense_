@@ -1,0 +1,335 @@
+
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  #app { font-family: 'DM Sans', sans-serif; padding: 1.5rem 0; }
+  #header { display: flex; align-items: baseline; gap: 12px; margin-bottom: 1.5rem; }
+  #header h1 { font-family: 'Space Mono', monospace; font-size: 20px; font-weight: 700; color: var(--color-text-primary); letter-spacing: -0.5px; }
+  #header span { font-size: 12px; color: var(--color-text-secondary); font-family: 'Space Mono', monospace; }
+  #main-grid { display: grid; grid-template-columns: 1fr 260px; gap: 16px; }
+  #cam-wrap { position: relative; background: #0a0a0a; border-radius: 12px; overflow: hidden; aspect-ratio: 4/3; }
+  #cam-wrap video { position: absolute; width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); opacity: 0; }
+  #cam-wrap canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+  #overlay-text { position: absolute; top: 14px; left: 14px; font-family: 'Space Mono', monospace; font-size: 13px; font-weight: 700; padding: 6px 12px; border-radius: 6px; transition: all 0.3s; }
+  #angle-text { position: absolute; top: 14px; right: 14px; font-family: 'Space Mono', monospace; font-size: 11px; color: rgba(255,255,255,0.6); background: rgba(0,0,0,0.5); padding: 4px 10px; border-radius: 6px; }
+  #start-btn { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; background: rgba(10,10,10,0.9); cursor: pointer; border: none; width: 100%; transition: background 0.2s; }
+  #start-btn:hover { background: rgba(30,30,30,0.95); }
+  #start-btn svg { width: 48px; height: 48px; }
+  #start-btn p { font-family: 'DM Sans', sans-serif; font-size: 14px; color: rgba(255,255,255,0.7); }
+  #loading-msg { font-family: 'Space Mono', monospace; font-size: 11px; color: rgba(255,255,255,0.4); }
+  #sidebar { display: flex; flex-direction: column; gap: 10px; }
+  .stat-card { background: var(--color-background-secondary); border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-md); padding: 12px 14px; }
+  .stat-label { font-size: 10px; color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 4px; }
+  #posture-indicator { border-radius: var(--border-radius-md); padding: 12px 14px; transition: background 0.4s, border-color 0.4s; border: 0.5px solid; }
+  #posture-indicator.good { background: #EAF3DE; border-color: #639922; }
+  #posture-indicator.slight { background: #FAEEDA; border-color: #BA7517; }
+  #posture-indicator.bad { background: #FCEBEB; border-color: #A32D2D; }
+  #posture-indicator.idle { background: var(--color-background-secondary); border-color: var(--color-border-tertiary); }
+  #posture-label { font-size: 15px; font-weight: 500; }
+  #posture-indicator.good #posture-label { color: #3B6D11; }
+  #posture-indicator.slight #posture-label { color: #854F0B; }
+  #posture-indicator.bad #posture-label { color: #A32D2D; }
+  #posture-indicator.idle #posture-label { color: var(--color-text-secondary); }
+  #posture-desc { font-size: 11px; margin-top: 3px; }
+  #posture-indicator.good #posture-desc { color: #639922; }
+  #posture-indicator.slight #posture-desc { color: #BA7517; }
+  #posture-indicator.bad #posture-desc { color: #A32D2D; }
+  #posture-indicator.idle #posture-desc { color: var(--color-text-tertiary); }
+  #gauge-bar-wrap { background: var(--color-background-primary); border: 0.5px solid var(--color-border-tertiary); border-radius: 4px; height: 8px; margin-top: 8px; overflow: hidden; }
+  #gauge-bar { height: 100%; width: 0%; border-radius: 4px; transition: width 0.2s, background 0.3s; background: #639922; }
+  #angle-display { font-family: 'Space Mono', monospace; font-size: 20px; font-weight: 700; color: var(--color-text-primary); }
+  #session-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .mini-stat { background: var(--color-background-secondary); border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-md); padding: 9px 11px; }
+  .mini-label { font-size: 10px; color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: 0.5px; }
+  .mini-val { font-family: 'Space Mono', monospace; font-size: 15px; font-weight: 700; color: var(--color-text-primary); margin-top: 2px; }
+  #voice-row { display: flex; align-items: center; justify-content: space-between; background: var(--color-background-secondary); border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-md); padding: 9px 13px; }
+  #voice-row label { font-size: 13px; color: var(--color-text-primary); cursor: pointer; }
+  #voice-toggle { appearance: none; width: 36px; height: 20px; border-radius: 10px; background: var(--color-border-tertiary); cursor: pointer; position: relative; transition: background 0.2s; border: none; flex-shrink: 0; }
+  #voice-toggle:checked { background: #639922; }
+  #voice-toggle::after { content: ''; position: absolute; width: 14px; height: 14px; background: white; border-radius: 50%; top: 3px; left: 3px; transition: left 0.2s; }
+  #voice-toggle:checked::after { left: 19px; }
+  #alert-banner { display: none; background: #FCEBEB; border: 0.5px solid #A32D2D; border-radius: var(--border-radius-md); padding: 9px 13px; font-size: 12px; color: #A32D2D; font-weight: 500; text-align: center; }
+  @media (max-width: 580px) { #main-grid { grid-template-columns: 1fr; } }
+</style>
+
+<div id="app">
+  <div id="header">
+    <h1>PostureSense AI</h1>
+    <span>browser-native · no install</span>
+  </div>
+  <div id="main-grid">
+    <div id="cam-wrap">
+      <video id="video" autoplay playsinline muted></video>
+      <canvas id="canvas"></canvas>
+      <div id="overlay-text"></div>
+      <div id="angle-text">angle: —°</div>
+      <button id="start-btn" onclick="startCamera()">
+        <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="24" cy="24" r="22" stroke="rgba(255,255,255,0.3)" stroke-width="1.5"/>
+          <circle cx="24" cy="18" r="6" stroke="rgba(255,255,255,0.8)" stroke-width="1.5"/>
+          <path d="M12 36c0-6.627 5.373-12 12-12s12 5.373 12 12" stroke="rgba(255,255,255,0.8)" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+        <p id="btn-label">Click to start webcam</p>
+        <span id="loading-msg"></span>
+      </button>
+    </div>
+    <div id="sidebar">
+      <div id="posture-indicator" class="idle">
+        <div id="posture-label">Waiting for camera...</div>
+        <div id="posture-desc">Position so your full upper body is visible</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">spine angle</div>
+        <div id="angle-display">0°</div>
+        <div id="gauge-bar-wrap"><div id="gauge-bar"></div></div>
+      </div>
+      <div id="session-stats">
+        <div class="mini-stat"><div class="mini-label">Good %</div><div class="mini-val" id="good-pct">—</div></div>
+        <div class="mini-stat"><div class="mini-label">Alerts</div><div class="mini-val" id="bad-count">0</div></div>
+        <div class="mini-stat"><div class="mini-label">Session</div><div class="mini-val" id="session-time">0:00</div></div>
+        <div class="mini-stat"><div class="mini-label">Frames</div><div class="mini-val" id="frame-count">0</div></div>
+      </div>
+      <div id="voice-row">
+        <label for="voice-toggle">Voice alerts</label>
+        <input type="checkbox" id="voice-toggle" checked>
+      </div>
+      <div id="alert-banner">Fix your posture!</div>
+    </div>
+  </div>
+</div>
+
+<script>
+const MEDIAPIPE_VERSION = '0.5.1675469404';
+
+let poseInstance = null;
+let animFrameId = null;
+let sessionStart = null;
+let timerInterval = null;
+let frames = 0, goodFrames = 0, badAlerts = 0;
+let badPostureStart = null, lastAlertTime = 0;
+const TRIGGER_SECS = 3, ALERT_INTERVAL = 5;
+
+function loadScript(src) {
+  return new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = src;
+    s.onload = resolve;
+    s.onerror = () => reject(new Error('Failed: ' + src));
+    document.head.appendChild(s);
+  });
+}
+
+async function startCamera() {
+  const btn = document.getElementById('start-btn');
+  const label = document.getElementById('btn-label');
+  const msg = document.getElementById('loading-msg');
+
+  label.textContent = 'Loading MediaPipe...';
+  msg.textContent = 'this may take a few seconds';
+  btn.style.cursor = 'default';
+  btn.onclick = null;
+
+  try {
+    const base = `https://unpkg.com/@mediapipe/pose@${MEDIAPIPE_VERSION}`;
+    await loadScript(`${base}/pose.js`);
+    msg.textContent = 'pose model loaded ✓';
+
+    label.textContent = 'Requesting camera...';
+    const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480, facingMode: 'user' }, audio: false });
+
+    const video = document.getElementById('video');
+    video.srcObject = stream;
+    await new Promise(r => { video.onloadedmetadata = r; });
+    await video.play();
+
+    label.textContent = 'Initializing pose detection...';
+    msg.textContent = 'loading WASM model...';
+
+    poseInstance = new Pose({
+      locateFile: (file) => `${base}/${file}`
+    });
+
+    poseInstance.setOptions({
+      modelComplexity: 1,
+      smoothLandmarks: true,
+      enableSegmentation: false,
+      minDetectionConfidence: 0.6,
+      minTrackingConfidence: 0.5
+    });
+
+    poseInstance.onResults(onResults);
+
+    await poseInstance.initialize();
+
+    btn.style.display = 'none';
+    sessionStart = Date.now();
+    timerInterval = setInterval(updateTimer, 1000);
+    processFrame(video);
+
+  } catch (e) {
+    label.textContent = 'Error: ' + (e.message || 'Unknown error');
+    msg.textContent = 'Check console for details & try again';
+    btn.onclick = startCamera;
+    btn.style.cursor = 'pointer';
+    console.error(e);
+  }
+}
+
+function processFrame(video) {
+  const canvas = document.getElementById('canvas');
+  canvas.width = video.videoWidth || 640;
+  canvas.height = video.videoHeight || 480;
+
+  poseInstance.send({ image: video }).then(() => {
+    animFrameId = requestAnimationFrame(() => processFrame(video));
+  }).catch(console.error);
+}
+
+function onResults(results) {
+  const canvas = document.getElementById('canvas');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+
+  ctx.clearRect(0, 0, W, H);
+  ctx.save();
+  ctx.scale(-1, 1);
+  ctx.translate(-W, 0);
+  ctx.drawImage(results.image, 0, 0, W, H);
+  ctx.restore();
+
+  if (!results.poseLandmarks) return;
+
+  frames++;
+  document.getElementById('frame-count').textContent = frames;
+
+  const lm = results.poseLandmarks;
+  const ls = lm[11], rs = lm[12];
+  const lh = lm[23], rh = lm[24];
+
+  const smx = (ls.x + rs.x) / 2 * W;
+  const smy = (ls.y + rs.y) / 2 * H;
+  const hmx = (lh.x + rh.x) / 2 * W;
+  const hmy = (lh.y + rh.y) / 2 * H;
+
+  const dx = smx - hmx;
+  const dy = smy - hmy;
+  const len = Math.sqrt(dx * dx + dy * dy) || 0.001;
+
+  const cosTheta = Math.max(-1, Math.min(1, (dx * 0 + dy * -1) / len));
+  const angle = Math.acos(cosTheta) * 180 / Math.PI;
+  const vdiff = Math.abs(smx - hmx);
+
+  let status, cssClass;
+  if (angle < 10 && vdiff < 20) {
+    status = 'Good Posture'; cssClass = 'good'; goodFrames++;
+  } else if (angle < 20) {
+    status = 'Slight Bend'; cssClass = 'slight';
+  } else {
+    status = 'Bad Posture'; cssClass = 'bad';
+  }
+
+  ctx.save();
+  ctx.scale(-1, 1);
+  ctx.translate(-W, 0);
+  drawSkeleton(ctx, lm, W, H, cssClass);
+  drawSpine(ctx, smx, smy, hmx, hmy, cssClass);
+  ctx.restore();
+
+  updateUI(status, cssClass, angle);
+  handleAlerts(cssClass);
+}
+
+const CONNECTIONS = [[11,12],[11,13],[13,15],[12,14],[14,16],[11,23],[12,24],[23,24],[23,25],[24,26],[25,27],[26,28]];
+const COLORS = { good: '#3B6D11', slight: '#854F0B', bad: '#A32D2D' };
+
+function drawSkeleton(ctx, lm, W, H, cssClass) {
+  const col = COLORS[cssClass];
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+  CONNECTIONS.forEach(([a, b]) => {
+    if ((lm[a]?.visibility ?? 0) > 0.4 && (lm[b]?.visibility ?? 0) > 0.4) {
+      ctx.beginPath();
+      ctx.moveTo(lm[a].x * W, lm[a].y * H);
+      ctx.lineTo(lm[b].x * W, lm[b].y * H);
+      ctx.stroke();
+    }
+  });
+  [11,12,13,14,15,16,23,24].forEach(i => {
+    if ((lm[i]?.visibility ?? 0) > 0.4) {
+      ctx.beginPath();
+      ctx.arc(lm[i].x * W, lm[i].y * H, 4, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255,255,255,0.55)';
+      ctx.fill();
+    }
+  });
+}
+
+function drawSpine(ctx, smx, smy, hmx, hmy, cssClass) {
+  const col = COLORS[cssClass];
+  ctx.beginPath();
+  ctx.moveTo(hmx, hmy);
+  ctx.lineTo(smx, smy);
+  ctx.strokeStyle = col;
+  ctx.lineWidth = 5;
+  ctx.stroke();
+  [smx, hmx].forEach((x, i) => {
+    ctx.beginPath();
+    ctx.arc(x, [smy, hmy][i], 7, 0, Math.PI * 2);
+    ctx.fillStyle = col;
+    ctx.fill();
+  });
+}
+
+function updateUI(status, cssClass, angle) {
+  const olText = document.getElementById('overlay-text');
+  const bgMap = { good: 'rgba(59,109,17,0.85)', slight: 'rgba(133,79,11,0.85)', bad: 'rgba(163,45,45,0.85)' };
+  olText.textContent = status;
+  olText.style.background = bgMap[cssClass];
+  olText.style.color = '#fff';
+
+  document.getElementById('angle-text').textContent = `angle: ${Math.round(angle)}°`;
+  document.getElementById('angle-display').textContent = `${Math.round(angle)}°`;
+
+  const bar = document.getElementById('gauge-bar');
+  bar.style.width = `${Math.min(angle / 45, 1) * 100}%`;
+  bar.style.background = COLORS[cssClass];
+
+  const ind = document.getElementById('posture-indicator');
+  ind.className = cssClass;
+  document.getElementById('posture-label').textContent = status;
+  document.getElementById('posture-desc').textContent =
+    cssClass === 'good' ? 'Spine well aligned. Keep it up!' :
+    cssClass === 'slight' ? 'Minor forward lean detected.' :
+    'Significant slouching detected!';
+
+  document.getElementById('good-pct').textContent = `${Math.round(goodFrames / (frames || 1) * 100)}%`;
+}
+
+function handleAlerts(cssClass) {
+  const now = Date.now() / 1000;
+  if (cssClass === 'bad') {
+    if (!badPostureStart) badPostureStart = now;
+    if (now - badPostureStart > TRIGGER_SECS && now - lastAlertTime > ALERT_INTERVAL) {
+      const banner = document.getElementById('alert-banner');
+      banner.style.display = 'block';
+      badAlerts++;
+      document.getElementById('bad-count').textContent = badAlerts;
+      lastAlertTime = now;
+      if (document.getElementById('voice-toggle').checked && window.speechSynthesis) {
+        const u = new SpeechSynthesisUtterance('Please correct your posture');
+        u.rate = 0.9;
+        speechSynthesis.speak(u);
+      }
+      setTimeout(() => { banner.style.display = 'none'; }, 3000);
+    }
+  } else {
+    badPostureStart = null;
+  }
+}
+
+function updateTimer() {
+  if (!sessionStart) return;
+  const s = Math.floor((Date.now() - sessionStart) / 1000);
+  document.getElementById('session-time').textContent = `${Math.floor(s/60)}:${(s%60).toString().padStart(2,'0')}`;
+}
+</script>
